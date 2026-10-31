@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: Brightloop Subscription Management API
+  version: 0.1.0
+servers:
+  - url: http://localhost:5000
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: API liveness (does not check PostgreSQL)
+      responses:
+        '200':
+          description: API is available
+          headers:
+            X-Request-ID:
+              schema: { type: string, format: uuid }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [status, service, timestamp, database]
+                    properties:
+                      status: { type: string, enum: [ok] }
+                      service: { type: string, enum: [brightloop-api] }
+                      timestamp: { type: string, format: date-time }
+                      database: { type: string, enum: [not_checked] }
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '403':
+          $ref: '#/components/responses/Error'
+    options:
+      operationId: healthPreflight
+      summary: Allowed-origin CORS preflight
+      responses:
+        '204':
+          description: Preflight accepted
+        '403':
+          $ref: '#/components/responses/Error'
+components:
+  schemas:
+    Meta:
+      type: object
+      required: [requestId]
+      properties:
+        requestId: { type: string, format: uuid }
+    ApiError:
+      type: object
+      required: [error, meta]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+        meta:
+          $ref: '#/components/schemas/Meta'
+  responses:
+    Error:
+      description: Request rejected; see error code and request ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'

@@ -1,0 +1,10 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HealthProvider } from '../contexts/HealthContext';
+import { AppLayout } from '../layouts/AppLayout';
+import { Overview } from '../pages/Overview';
+import { System } from '../pages/System';
+import { Roadmap } from '../pages/Roadmap';
+import '../styles/global.css';
+createRoot(document.getElementById('root')!).render(<React.StrictMode><BrowserRouter><HealthProvider><Routes><Route element={<AppLayout/>}><Route index element={<Overview/>}/><Route path="system" element={<System/>}/><Route path="roadmap" element={<Roadmap/>}/><Route path="*" element={<><h1>Page not found</h1><a href="/">Return to overview</a></>}/></Route></Routes></HealthProvider></BrowserRouter></React.StrictMode>);

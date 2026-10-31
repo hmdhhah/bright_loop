@@ -1,0 +1,10 @@
+# Replace example teams with real GitHub teams before enabling required reviews.
+/backend/ @brightloop/backend
+/database/ @brightloop/backend
+/billing-worker/ @brightloop/billing
+/frontend/ @brightloop/frontend
+/contracts/ @brightloop/backend @brightloop/billing @brightloop/frontend
+/docs/ @brightloop/backend @brightloop/billing @brightloop/frontend
+/package*.json @brightloop/backend @brightloop/frontend
+/CODEOWNERS @brightloop/backend
+/.github/ @brightloop/backend

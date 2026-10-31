@@ -1,0 +1,2 @@
+-- Phase 1 placeholder only. No domain tables exist yet.
+-- Phase 2 will introduce reviewed, versioned transactional migrations and schema snapshot.

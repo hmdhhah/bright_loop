@@ -1,0 +1,3 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import styles from './AppLayout.module.css';
+export function AppLayout() { return <div className={styles.shell}><aside className={styles.sidebar}><a className={styles.brand} href="/">◉ brightloop<span>SOFTWARE</span></a><p className={styles.label}>WORKSPACE</p><nav aria-label="Main navigation"><NavLink to="/" end>Overview</NavLink><NavLink to="/system">System status</NavLink><NavLink to="/roadmap">Development roadmap</NavLink></nav><div className={styles.footer}>Subscription management<br/><small>Foundation · v0.1.0</small></div></aside><main className={styles.main}><header className={styles.header}><span>Brightloop workspace</span><span className="badge">Development</span></header><Outlet/></main></div>; }
