@@ -1,8 +1,8 @@
--- Phase 1 placeholder only. No domain tables exist yet.
--- Phase 2 will introduce reviewed, versioned transactional migrations and schema snapshot.
 -- ============================================================================
+-- Brightloop Subscription Management System - Production Database Engine Schema
+-- ============================================================================
+
 -- 1. EXTENSIONS & ENUMS
--- ============================================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_role AS ENUM ('admin', 'staff', 'customer');
@@ -18,7 +18,14 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$'),
     password_hash VARCHAR(255) NOT NULL,
     role user_role NOT NULL DEFAULT 'customer',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    -- Strict Password Policy Enforcement (Page 2 Requirement: >8 chars, Upper, Lower, Special)
+    CONSTRAINT chk_strong_password CHECK (
+        LENGTH(password_hash) >= 8 AND
+        password_hash ~ '[A-Z]' AND
+        password_hash ~ '[a-z]' AND
+        password_hash ~ '[0-9!@#$%^&*(),.?":{}|<>_+-]'
+    )
 );
 
 CREATE TABLE products (
@@ -120,7 +127,7 @@ CREATE TABLE invoices (
 
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id UUID REFERENCES invoices(id) ON DELETE RESTRICT, -- Fixed constraint syntax
+    invoice_id UUID REFERENCES invoices(id) ON DELETE RESTRICT, 
     payment_method VARCHAR(50) NOT NULL, 
     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
     payment_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -128,7 +135,18 @@ CREATE TABLE payments (
 );
 
 -- ============================================================================
--- 5. PERFORMANCE INDEXES
+-- 5. AUDIT ENGINE (State-Machine Logging)
+-- ============================================================================
+CREATE TABLE subscription_status_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
+    old_status sub_status,
+    new_status sub_status NOT NULL,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 6. PERFORMANCE INDEXES
 -- ============================================================================
 CREATE INDEX idx_subscriptions_customer ON subscriptions(customer_id);
 CREATE INDEX idx_subscriptions_status ON subscriptions(status);
@@ -137,8 +155,29 @@ CREATE INDEX idx_invoices_due_date ON invoices(due_date);
 CREATE INDEX idx_discount_dates ON discount_rules(start_date, end_date);
 
 -- ============================================================================
--- 6. AUTOMATED STORED PROCEDURES (Moved to bottom)
+-- 7. AUTOMATED FUNCTIONS & PROCEDURES
 -- ============================================================================
+
+-- A. Automation: Status History Logger Trigger Function
+CREATE OR REPLACE FUNCTION log_subscription_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO subscription_status_history (subscription_id, old_status, new_status)
+        VALUES (NEW.id, NULL, NEW.status);
+    ELSIF (TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status) THEN
+        INSERT INTO subscription_status_history (subscription_id, old_status, new_status)
+        VALUES (NEW.id, OLD.status, NEW.status);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_track_subscription_status
+AFTER INSERT OR UPDATE ON subscriptions
+FOR EACH ROW EXECUTE FUNCTION log_subscription_status_change();
+
+-- B. Automation: Batch Engine for Billing Day Invoices
 CREATE OR REPLACE PROCEDURE generate_billing_day_invoices()
 LANGUAGE plpgsql AS $$
 DECLARE
